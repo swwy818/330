@@ -10967,10 +10967,10 @@ commentActions.forEach(action => {
                 if (targetPost.type === 'shuoshuo') {
                     innerContentHtml = `<div class="post-content" style="margin-bottom: 10px;">${parseMarkdown(targetPost.content).replace(/\n/g, '<br>')}</div>`;
                 } else if (targetPost.type === 'image_post' && targetPost.imageUrl) {
-                        const postImageUrl = targetPost.image_prompt ? `https://image.pollinations.ai/prompt/${targetPost.image_prompt}` : (targetPost.imageUrl || 'https://i.postimg.cc/KYr2qRCK/1.jpg');
+                        const postImageUrl = targetPost.imageUrl || 'https://i.postimg.cc/KYr2qRCK/1.jpg';
     innerContentHtml = publicTextHtml ? `${publicTextHtml}<div style="margin-top:10px;"><img src="${postImageUrl}" class="chat-image"></div>` : `<img src="${postImageUrl}" class="chat-image">`;
 } else if (targetPost.type === 'text_image') {
-    const postImageUrl = targetPost.image_prompt ? `https://image.pollinations.ai/prompt/${targetPost.image_prompt}` : 'https://i.postimg.cc/KYr2qRCK/1.jpg';
+    const postImageUrl = 'https://i.postimg.cc/KYr2qRCK/1.jpg';
     innerContentHtml = publicTextHtml ? `${publicTextHtml}<div style="margin-top:10px;"><img src="${postImageUrl}" class="chat-image" style="cursor: pointer;" data-hidden-text="${targetPost.hiddenContent}"></div>` : `<img src="${postImageUrl}" class="chat-image" style="cursor: pointer;" data-hidden-text="${targetPost.hiddenContent}">`;
                 }
                 return innerContentHtml;
@@ -11469,10 +11469,10 @@ commentActions.forEach(action => {
                     if (post.type === 'shuoshuo') {
                         contentHtml = `<div class="post-content">${post.content.replace(/\n/g, '<br>')}</div>`;
                     } else if (post.type === 'image_post' && post.imageUrl) {
-    const postImageUrl = post.image_prompt ? `https://image.pollinations.ai/prompt/${post.image_prompt}` : (post.imageUrl || 'https://i.postimg.cc/KYr2qRCK/1.jpg');
+    const postImageUrl = post.imageUrl || 'https://i.postimg.cc/KYr2qRCK/1.jpg';
     contentHtml = publicTextHtml ? `${publicTextHtml}<div style="margin-top:10px;"><img src="${postImageUrl}" class="chat-image"></div>` : `<img src="${postImageUrl}" class="chat-image">`;
 } else if (post.type === 'text_image') {
-    const postImageUrl = post.image_prompt ? `https://image.pollinations.ai/prompt/${post.image_prompt}` : 'https://i.postimg.cc/KYr2qRCK/1.jpg';
+    const postImageUrl = 'https://i.postimg.cc/KYr2qRCK/1.jpg';
     contentHtml = publicTextHtml ? `${publicTextHtml}<div style="margin-top:10px;"><img src="${postImageUrl}" class="chat-image" style="cursor: pointer;" data-hidden-text="${post.hiddenContent}"></div>` : `<img src="${postImageUrl}" class="chat-image" style="cursor: pointer;" data-hidden-text="${post.hiddenContent}">`;
                     }
         
@@ -13549,7 +13549,7 @@ if (!state.globalSettings.widgetData) {
                 } else if (msg.type === 'user_photo' || msg.type === 'ai_image') {
     bubble.classList.add('is-ai-image', 'is-card-like');
     const altText = msg.type === 'user_photo' ? "用户描述的照片" : "AI生成的图片";
-    const imageUrl = msg.image_prompt ? `https://image.pollinations.ai/prompt/${msg.image_prompt}` : 'https://i.postimg.cc/KYr2qRCK/1.jpg';
+    const imageUrl = 'https://i.postimg.cc/KYr2qRCK/1.jpg';
     contentHtml = `<img src="${imageUrl}" class="ai-generated-image" alt="${altText}" data-description="${msg.content}">`;
                 } else if (msg.type === 'voice_message') {
                     bubble.classList.add('is-voice-message', 'is-card-like');

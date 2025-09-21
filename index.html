@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -30774,6 +30775,57 @@ document.getElementById('save-wallpaper-btn').addEventListener('click', async ()
     showScreen('home-screen');
 });
 // ▲▲▲ 新增代码结束 ▲▲▲
+        // ▼▼▼ 预设管理：延迟绑定到“聊天设置”面板打开后执行 ▼▼▼
+        (function(){
+          const STORAGE_KEY = 'bubble-css-presets';
+          const $ = (id) => document.getElementById(id);
+          function getPresets(){ try{ const s=localStorage.getItem(STORAGE_KEY); const a=s?JSON.parse(s):[]; return Array.isArray(a)?a:[]; }catch{return [];}}
+          function setPresets(list){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list||[])); }catch{} }
+          function updatePreviewSafe(){ try{ if (typeof updateSettingsPreview==='function') updateSettingsPreview(); }catch{} }
+          function syncCustomCssState(css){ try{ if (window.state && state.activeChatId && state.chats[state.activeChatId]){ const chat=state.chats[state.activeChatId]; chat.settings=chat.settings||{}; chat.settings.customCss=css; } }catch{} }
+          function fillSelect(sel,list,selectedId){ if(!sel) return; const selId = selectedId!=null? String(selectedId): String(sel.value||''); sel.innerHTML = '<option value=\"\">-- 选择一个预设 --</option>' + list.map(p=>`<option value=\"${p.id}\">${p.name}</option>`).join(''); if (selId) sel.value = selId; }
+          function applyPresetById(id){ const list=getPresets(); const p=list.find(x=>x.id===Number(id)); const input=$('custom-css-input'); if(!input) return; if(p){ input.value = p.value||''; syncCustomCssState(input.value); updatePreviewSafe(); } }
+          function refreshDropdowns(keep){ const list=getPresets(); fillSelect($('css-preset-select'), list, keep?$('css-preset-select')?.value:''); fillSelect($('theme-preset-select'), list, keep?$('theme-preset-select')?.value:''); }
+
+          async function doSave(){
+            const input = $('custom-css-input'); if(!input) return;
+            const css = (input.value||'').trim(); if(!css) return;
+            let name = '';
+            try{ if(typeof showCustomPrompt==='function') name = await showCustomPrompt('保存CSS预设','请输入预设名称'); }catch{}
+            if(!name && typeof prompt==='function') name = prompt('输入预设名称：')||'';
+            name = (name||'').trim(); if(!name) return;
+            const list = getPresets(); const id = Date.now(); list.push({id, name, value: css}); setPresets(list);
+            refreshDropdowns(false);
+            if ($('css-preset-select')) $('css-preset-select').value = String(id);
+            if ($('theme-preset-select')) $('theme-preset-select').value = String(id);
+          }
+          function doDelete(target){ const sel=$(target); const id = sel? Number(sel.value): NaN; if(!id) return; const list=getPresets().filter(p=>p.id!==id); setPresets(list); refreshDropdowns(false); if ($('css-preset-select')) $('css-preset-select').value=''; if ($('theme-preset-select')) $('theme-preset-select').value=''; }
+
+          function bindOnce(){
+            // 渲染后刷新下拉
+            refreshDropdowns(false);
+            const cssSel = $('css-preset-select');
+            const themeSel = $('theme-preset-select');
+            if (cssSel) cssSel.onchange = () => { const id = cssSel.value; applyPresetById(id); if (themeSel) themeSel.value = id||''; };
+            if (themeSel) themeSel.onchange = () => { const id = themeSel.value; applyPresetById(id); if (cssSel) cssSel.value = id||''; };
+            if ($('save-css-preset-btn')) $('save-css-preset-btn').onclick = () => doSave();
+            if ($('delete-css-preset-btn')) $('delete-css-preset-btn').onclick = () => doDelete('css-preset-select');
+            if ($('save-theme-preset-btn')) $('save-theme-preset-btn').onclick = () => doSave();
+            if ($('delete-theme-preset-btn')) $('delete-theme-preset-btn').onclick = () => doDelete('theme-preset-select');
+            if ($('reset-custom-css-btn')) $('reset-custom-css-btn').onclick = () => { const input=$('custom-css-input'); if(input){ input.value=''; syncCustomCssState(''); updatePreviewSafe(); } };
+            const cssInput = $('custom-css-input');
+            if (cssInput && !cssInput.__bindFlag){ cssInput.__bindFlag=true; cssInput.addEventListener('input', ()=>{ syncCustomCssState(cssInput.value||''); updatePreviewSafe(); }); }
+          }
+
+          // 将绑定挂到“聊天设置”按钮点击后，确保元素已渲染
+          const settingsBtn = document.getElementById('chat-settings-btn');
+          if (settingsBtn && !settingsBtn.__cssPresetHooked){
+            settingsBtn.__cssPresetHooked = true;
+            settingsBtn.addEventListener('click', () => { setTimeout(bindOnce, 0); });
+          }
+        })();
+        // ▲▲▲ 预设管理绑定（面板打开后执行） ▲▲▲
+
         // ▼▼▼ 【全新】全局CSS预设功能事件监听器 ▼▼▼
         document.getElementById('css-preset-select').addEventListener('change', handleCssPresetSelectionChange);
         document.getElementById('save-css-preset-btn').addEventListener('click', saveCssPreset);

@@ -14995,7 +14995,9 @@ ${shoppingContext}
                              errorMsg += ` - ${JSON.stringify(errorData)}`;
                         }
                     } catch (jsonError) {
-                        errorMsg += ` - 响应内容: ${await response.text()}`;
+                        // 避免重复读取 Response 的 body（已在上文尝试过 response.json()）
+                        // 防止 "body stream already read" 错误，这里使用占位提示而不再读取
+                        errorMsg += ' - 响应内容: [响应体已读取，无法再次读取]';
                     }
                     throw new Error(errorMsg);
                 }
@@ -25407,6 +25409,12 @@ async function handlePropelAction() {
         // ==========================================================
         // 我们不再使用精简版的 propelSystemPrompt，
         // 而是直接复用 triggerAiResponse 函数中那个完整、强大的 systemPrompt。
+        // ★ 新增系统约束：推进剧情必须延续上一轮 AI 回复，且只用 AI 的口吻
+        const lastAi = (chat.history || []).slice().reverse().find(m => m.role === 'assistant');
+        const propelSystemInstruction = '[系统指令：你现在要在上一轮AI回复的基础上继续推进剧情；必须使用角色(AI)的口吻回应，禁止以用户的口吻叙述或代言用户。]';
+        if (typeof systemPrompt === 'string') {
+            systemPrompt += '\n' + propelSystemInstruction + (lastAi ? ('\n[上一轮AI回复摘录] ' + (typeof lastAi.content === 'string' ? lastAi.content.slice(0, 400) : '')) : '');
+        }
         // 为了方便，这里直接将那段庞大的指令复制了过来。
         // 这段代码与 triggerAiResponse 中的指令是完全一致的。
         

@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -9242,12 +9243,13 @@
                         </button>
                         <!-- ▲▲▲ 新增HTML结束 ▲▲▲ -->
 <!-- ▼▼▼ 在这里粘贴新按钮 ▼▼▼ -->
-                        <button id="propel-btn" class="chat-action-icon-btn action-button" title="推进剧情" style="display: flex;">
+                        <!-- 推进剧情按钮已合并到等待回复按钮中 -->
+                        <!-- <button id="propel-btn" class="chat-action-icon-btn action-button" title="推进剧情" style="display: flex;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="13 19 22 12 13 5 13 19"></polygon>
                                 <polygon points="2 19 11 12 2 5 2 19"></polygon>
                             </svg>
-                        </button>
+                        </button> -->
                         <!-- ▲▲▲ 新增HTML结束 ▲▲▲ -->
                     <button id="show-announcement-board-btn" class="chat-action-icon-btn action-button" title="群公告板" style="display: none;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -15189,6 +15191,65 @@ if (!state.globalSettings.widgetData) {
          * - 彻底修复了对第三方API的兼容性问题
          * - 增强了错误处理和日志记录
          */
+        // ▼▼▼ 【合并功能】等待回复按钮的智能响应函数 ▼▼▼
+        /**
+         * 合并的响应函数：根据最后一条消息的类型决定调用哪个逻辑
+         * - 如果最后一条消息是用户消息，调用等待回复逻辑（triggerAiResponse）
+         * - 如果最后一条消息是角色消息，调用推进剧情逻辑（handlePropelAction）
+         */
+        async function handleCombinedResponse() {
+            if (!state.activeChatId) return;
+            
+            try {
+                const chat = state.chats[state.activeChatId];
+                
+                // 安全检查：确保chat存在
+                if (!chat) {
+                    console.log('聊天对象不存在，调用等待回复逻辑');
+                    await triggerAiResponse();
+                    return;
+                }
+                
+                // 检查消息数组，可能是 messages 或 history
+                let messages = chat.messages || chat.history || [];
+                
+                // 确保messages是数组且不为空
+                if (!Array.isArray(messages) || messages.length === 0) {
+                    console.log('没有消息记录，调用等待回复逻辑');
+                    await triggerAiResponse();
+                    return;
+                }
+                
+                const lastMessage = messages[messages.length - 1];
+                
+                if (!lastMessage || !lastMessage.role) {
+                    console.log('最后一条消息无效，调用等待回复逻辑');
+                    await triggerAiResponse();
+                    return;
+                }
+                
+                console.log('检测到的最后一条消息:', lastMessage);
+                
+                if (lastMessage.role === 'user') {
+                    // 最后一条是用户消息，调用等待回复逻辑
+                    console.log('最后一条消息是用户消息，调用等待回复逻辑');
+                    await triggerAiResponse();
+                } else if (lastMessage.role === 'assistant') {
+                    // 最后一条是角色消息，调用推进剧情逻辑
+                    console.log('最后一条消息是角色消息，调用推进剧情逻辑');
+                    await handlePropelAction();
+                } else {
+                    // 其他情况（如系统消息），默认调用等待回复逻辑
+                    console.log('最后一条消息是系统消息或其他类型，调用等待回复逻辑');
+                    await triggerAiResponse();
+                }
+            } catch (error) {
+                console.error("智能响应失败:", error);
+                await showCustomAlert('操作失败', `智能响应失败: ${error.message}`);
+            }
+        }
+        // ▲▲▲ 合并功能函数结束 ▲▲▲
+
         async function triggerAiResponse() {
             if (!state.activeChatId) return;
             const chatId = state.activeChatId;
@@ -30827,7 +30888,7 @@ function updateChatListItem(chatId) {
     chatInput.focus();
     cancelReplyMode();
 });
-                    document.getElementById('wait-reply-btn').addEventListener('click', triggerAiResponse);
+                    document.getElementById('wait-reply-btn').addEventListener('click', handleCombinedResponse);
                     chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('send-btn').click(); } });
                     //chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = (chatInput.scrollHeight) + 'px'; });
         
@@ -34216,7 +34277,8 @@ document.getElementById('memory-list-container').addEventListener('click', (e) =
         document.getElementById('regenerate-call-btn').addEventListener('click', handleRegenerateCallResponse);
         // ▲▲▲ 新增事件绑定结束 ▲▲▲  
         // ▼▼▼ 【全新】为推进剧情按钮绑定事件 ▼▼▼
-        document.getElementById('propel-btn').addEventListener('click', handlePropelAction);
+        // 推进剧情按钮已合并到等待回复按钮中
+        // document.getElementById('propel-btn').addEventListener('click', handlePropelAction);
         // 下面这行代码已被安全地注释掉，因为它对应的HTML按钮不存在
         // document.getElementById('propel-call-btn').addEventListener('click', handlePropelCallAction);
         // ▲▲▲ 新增事件绑定结束 ▲▲▲

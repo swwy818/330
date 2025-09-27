@@ -9434,11 +9434,76 @@
         <button id="save-css-preset-btn" class="form-button-secondary" style="margin-top: 0; padding: 12px;">保存</button>
         <button id="delete-css-preset-btn" class="form-button-secondary" style="margin-top: 0; padding: 12px; background-color: #ffebee; color: #d32f2f; border-color: #ffcdd2;">删除</button>
     </div>
+    
+    <!-- 【新增】文件上传功能 -->
+    <div class="form-group" style="width:100%; margin-top: 15px;">
+        <label>从文件导入 CSS 代码</label>
+        <div id="css-file-upload-area" style="border: 2px dashed #007bff; border-radius: 8px; padding: 20px; text-align: center; background: #f8f9fa; margin: 10px 0; transition: all 0.3s; cursor: pointer;">
+            <div style="color: #666; margin-bottom: 10px;">
+                <strong>点击选择文件或拖拽文件到此处</strong>
+            </div>
+            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">
+                支持格式：TXT、DOCX 文件
+            </div>
+            <input type="file" id="css-file-input" accept=".txt,.docx" style="display: none;" />
+            <button type="button" class="form-button-secondary" id="css-file-trigger-btn" style="margin: 0; padding: 8px 16px;">选择文件</button>
+        </div>
+
+        <!-- 修复：防止“从文件导入 CSS 代码”点击弹出两次文件选择框 -->
+        <script>
+        (function fixCssFileUploadDoubleOpen(){
+          const area  = document.getElementById('css-file-upload-area');
+          const input = document.getElementById('css-file-input');
+          const btn   = document.getElementById('css-file-trigger-btn');
+          if (!area || !input || !btn) return;
+          if (area.dataset.doubleFixBound === '1') return;
+          area.dataset.doubleFixBound = '1';
+
+          // 1) 按钮 - 捕获阶段优先处理：仅触发一次并阻断后续
+          btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopImmediatePropagation && e.stopImmediatePropagation();
+            e.stopPropagation();
+            input.click();
+          }, { capture: true });
+
+          // 2) 容器 - 捕获阶段统一拦截空白处点击：只触发一次并彻底阻断后续监听
+          area.addEventListener('click', function(e){
+            const isBtn = (e.target === btn) || (e.target.closest && e.target.closest('#css-file-trigger-btn'));
+            if (isBtn) {
+              // 让按钮的捕获处理器生效，这里不干预
+              return;
+            }
+            if (area.dataset._capturingOnce === '1') return;
+            area.dataset._capturingOnce = '1';
+
+            e.preventDefault();
+            e.stopImmediatePropagation && e.stopImmediatePropagation();
+            e.stopPropagation();
+
+            // 只打开一次文件选择框
+            try { input.click(); } finally {
+              setTimeout(()=>{ delete area.dataset._capturingOnce; }, 0);
+            }
+          }, { capture: true });
+        })();
+        </script>
+        
+        <!-- 加载状态指示器 -->
+        <div id="css-upload-loading" style="display: none; text-align: center; padding: 15px;">
+            <div style="border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+            <div style="color: #666;">正在处理文件...</div>
+        </div>
+        
+        <!-- 提示信息容器 -->
+        <div id="css-upload-alert" style="margin-top: 10px;"></div>
+    </div>
 </div>
 <!-- ▲▲▲ 粘贴结束 ▲▲▲ -->
                 <hr style="width: 80%; opacity: 0.3; margin: 30px 0;">
                 <div class="form-group" style="width:100%;">
                     <label for="global-css-input"> 全局美化样式 (CSS) <button id="reset-global-css-btn" type="button" style="background: none; border: 1px solid #ccc; color: #555; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer; margin-left: 10px;">重置</button>
+                      <button id="fullscreen-global-css-btn" type="button" style="background: none; border: 1px solid #ccc; color: #555; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer; margin-left: 8px;">全屏编辑</button>
                     </label>
                     <textarea id="global-css-input" rows="6" style="width: 100%; margin-top: 8px; font-family: monospace; font-size: 16px; resize: vertical;" placeholder="/* 示例：将所有顶部栏变为粉色 */
 .header, .qzone-header {
@@ -9452,6 +9517,21 @@
 #qzone-screen .qzone-content {
     background-color: #fff0f5 !important;
 }"></textarea>
+  <!-- 全屏全局CSS编辑器（初始隐藏） -->
+  <div id="global-css-fullscreen-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;">
+    <div style="position: absolute; inset: 40px; background: #ffffff; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-weight: 600;">全屏编辑 · 全局CSS</span>
+        <div style="display:flex; gap:10px;">
+          <button id="global-css-fullscreen-cancel" class="form-button-secondary" style="padding: 8px 14px; border-radius: 6px; border: 1px solid #ccc; background:#fff; cursor:pointer;">取消</button>
+          <button id="global-css-fullscreen-save" class="form-button" style="padding: 8px 14px; border-radius: 6px; border: 1px solid var(--accent-color); background: var(--accent-color); color: #fff; cursor:pointer;">保存</button>
+        </div>
+      </div>
+      <div style="flex:1; padding: 10px;">
+        <textarea id="global-css-fullscreen-textarea" style="width:100%; height:100%; box-sizing:border-box; font-family: monospace; font-size: 14px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; resize: none;"></textarea>
+      </div>
+    </div>
+  </div>
                 </div>
                 <!-- 保存按钮 -->
                 <button class="form-button" id="save-wallpaper-btn" style="margin-top: 30px;">保存所有外观设置</button>
@@ -9991,8 +10071,41 @@
         <!-- ▲▲▲ 粘贴结束 ▲▲▲ -->
         <div class="form-group">
             <label for="custom-css-input"> 自定义气泡样式 (CSS) <button id="reset-custom-css-btn" type="button" style="background: none; border: 1px solid #ccc; color: #555; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer; margin-left: 10px;">重置</button>
+              <button id="fullscreen-custom-css-btn" type="button" style="background: none; border: 1px solid #ccc; color: #555; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer; margin-left: 8px;">全屏编辑</button>
             </label>
             <textarea id="custom-css-input" rows="5" style="width: 100%; margin-top: 8px; font-family: monospace; font-size: 16px; resize: vertical;" placeholder="/* 示例：为“我”的气泡添加渐变背景和阴影 */ .message-bubble.user .content { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 15px 4px 15px 15px; }"></textarea>
+
+            <!-- 全屏 气泡CSS 编辑器（初始隐藏） -->
+            <div id="custom-css-fullscreen-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;">
+              <div style="position: absolute; inset: 40px; background: #ffffff; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-weight: 600;">全屏编辑 · 气泡CSS</span>
+                  <div style="display:flex; gap:10px;">
+                    <button id="custom-css-fullscreen-cancel" class="form-button-secondary" style="padding: 8px 14px; border-radius: 6px; border: 1px solid #ccc; background:#fff; cursor:pointer;">取消</button>
+                    <button id="custom-css-fullscreen-save" class="form-button" style="padding: 8px 14px; border-radius: 6px; border: 1px solid var(--accent-color); background: var(--accent-color); color: #fff; cursor:pointer;">保存</button>
+                  </div>
+                </div>
+                <div style="flex:1; padding: 10px;">
+                  <textarea id="custom-css-fullscreen-textarea" style="width:100%; height:100%; box-sizing:border-box; font-family: monospace; font-size: 14px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; resize: none;"></textarea>
+                </div>
+              </div>
+            </div>
+        </div>
+
+        <!-- 【新增】聊天设置-气泡CSS文件上传 -->
+        <div class="form-group" style="width:100%; margin-top: 12px;">
+            <label>从文件导入气泡CSS</label>
+            <div id="chat-css-file-upload-area" style="border: 2px dashed #007bff; border-radius: 8px; padding: 16px; text-align: center; background: #f8f9fa; transition: .2s; cursor: pointer;">
+                <div style="color:#666; margin-bottom:8px;"><strong>点击选择文件或拖拽到此处</strong></div>
+                <div style="font-size:12px; color:#999; margin-bottom:8px;">支持：.txt、.docx</div>
+                <input type="file" id="chat-css-file-input" accept=".txt,.docx" style="display:none;">
+                <button type="button" class="form-button-secondary" id="chat-css-file-trigger-btn" style="margin:0; padding:8px 16px;">选择文件</button>
+            </div>
+            <div id="chat-css-upload-loading" style="display:none; text-align:center; padding:10px;">
+                <div style="border:3px solid #f3f3f3; border-top:3px solid #007bff; border-radius:50%; width:26px; height:26px; animation: spin 1s linear infinite; margin:6px auto;"></div>
+                <div style="color:#666;">正在处理文件...</div>
+            </div>
+            <div id="chat-css-upload-alert" style="margin-top:8px;"></div>
         </div>
         <div class="form-group">
             <label>实时预览</label>
@@ -34490,7 +34603,313 @@ document.getElementById('save-wallpaper-btn').addEventListener('click', async ()
         document.getElementById('css-preset-select').addEventListener('change', handleCssPresetSelectionChange);
         document.getElementById('save-css-preset-btn').addEventListener('click', saveCssPreset);
         document.getElementById('delete-css-preset-btn').addEventListener('click', deleteCssPreset);
-        // ▲▲▲ 新增结束 ▲▲▲
+
+/* ▼▼▼ 全屏编辑全局CSS：事件绑定与持久化覆盖逻辑 ▼▼▼ */
+(function initGlobalCssFullscreenEditor(){
+  const openBtn = document.getElementById('fullscreen-global-css-btn');
+  const overlay = document.getElementById('global-css-fullscreen-overlay');
+  const taMain = document.getElementById('global-css-input');
+  const taFull = document.getElementById('global-css-fullscreen-textarea');
+  const btnSave = document.getElementById('global-css-fullscreen-save');
+  const btnCancel = document.getElementById('global-css-fullscreen-cancel');
+
+  if (!openBtn || !overlay || !taMain || !taFull || !btnSave || !btnCancel) return;
+
+  function openFullscreen() {
+    taFull.value = taMain.value;
+    overlay.style.display = 'block';
+  }
+  function closeFullscreen() {
+    overlay.style.display = 'none';
+  }
+  openBtn.addEventListener('click', openFullscreen);
+  btnCancel.addEventListener('click', closeFullscreen);
+
+  btnSave.addEventListener('click', async () => {
+    const newCss = taFull.value;
+    const selectEl = document.getElementById('css-preset-select');
+    let selectedId = null;
+    if (selectEl && selectEl.value && !isNaN(parseInt(selectEl.value))) {
+      selectedId = parseInt(selectEl.value);
+    }
+
+    try {
+      if (selectedId) {
+        const preset = await db.appearancePresets.get(selectedId);
+        if (preset && preset.type === 'global_css') {
+          const confirmed = await showCustomConfirm('覆盖预设', `确定要覆盖预设 “${preset.name}” 吗？`, { confirmButtonClass: 'btn-danger' });
+          if (!confirmed) return;
+          await db.appearancePresets.update(selectedId, { value: newCss });
+          await loadCssPresetsDropdown();
+          const sel = document.getElementById('css-preset-select');
+          if (sel) sel.value = String(selectedId);
+        }
+      } else {
+        if (!state.globalSettings) state.globalSettings = {};
+        state.globalSettings.globalCss = newCss;
+      }
+
+      taMain.value = newCss;
+      if (typeof applyGlobalCss === 'function') {
+        applyGlobalCss(newCss);
+      } else {
+        const styleEl = document.getElementById('user-global-css-style') || (() => {
+          const el = document.createElement('style');
+          el.id = 'user-global-css-style';
+          document.head.appendChild(el);
+          return el;
+        })();
+        styleEl.textContent = newCss || '';
+      }
+
+      closeFullscreen();
+    } catch (e) {
+      console.error('保存全屏CSS失败:', e);
+      alert('保存失败，请稍后重试。');
+    }
+  });
+})();
+/* ▲▲▲ 全屏编辑全局CSS结束 ▲▲▲ */
+
+/* ▼▼▼ 全屏编辑 气泡CSS：事件绑定与覆盖保存逻辑 ▼▼▼ */
+(function initCustomCssFullscreenEditor(){
+  const openBtn = document.getElementById('fullscreen-custom-css-btn');
+  const overlay = document.getElementById('custom-css-fullscreen-overlay');
+  const taMain = document.getElementById('custom-css-input');
+  const taFull = document.getElementById('custom-css-fullscreen-textarea');
+  const btnSave = document.getElementById('custom-css-fullscreen-save');
+  const btnCancel = document.getElementById('custom-css-fullscreen-cancel');
+
+  if (!openBtn || !overlay || !taMain || !taFull || !btnSave || !btnCancel) return;
+
+  openBtn.addEventListener('click', () => {
+    taFull.value = taMain.value;
+    overlay.style.display = 'block';
+  });
+
+  btnCancel.addEventListener('click', () => {
+    overlay.style.display = 'none';
+  });
+
+  btnSave.addEventListener('click', async () => {
+    try {
+      const newCss = taFull.value;
+
+      // 回填主输入框
+      taMain.value = newCss;
+
+      // 即时预览
+      if (typeof updateSettingsPreview === 'function') updateSettingsPreview();
+      if (typeof applyScopedCss === 'function') {
+        applyScopedCss(newCss, '#settings-preview-area', 'preview-bubble-style');
+      }
+
+      // 1) 优先：主题预设(bubble_theme)
+      const themeSel = document.getElementById('theme-preset-select');
+      let themeId = null;
+      if (themeSel && themeSel.value !== '') {
+        themeId = isNaN(Number(themeSel.value)) ? themeSel.value : Number(themeSel.value);
+      }
+
+      if (themeId != null) {
+        const preset = await db.appearancePresets.get(themeId);
+        if (preset && preset.type === 'bubble_theme') {
+          const confirmed = await showCustomConfirm('覆盖预设', `确定要覆盖预设 “${preset.name}” 吗？`, { confirmButtonClass: 'btn-danger' });
+          if (!confirmed) return;
+
+          // 覆盖 custom 字段，保留 base
+          if (typeof preset.value === 'object' && preset.value !== null) {
+            preset.value.custom = newCss;
+          } else {
+            preset.value = { base: 'default', custom: newCss };
+          }
+
+          if (typeof db.appearancePresets.put === 'function') {
+            await db.appearancePresets.put(preset);
+          } else {
+            await db.appearancePresets.update(themeId, { value: preset.value });
+          }
+
+          if (typeof loadThemePresetsDropdown === 'function') {
+            await loadThemePresetsDropdown();
+            const sel = document.getElementById('theme-preset-select');
+            if (sel) sel.value = String(themeId);
+          }
+
+          if (window.state?.appearancePresets) {
+            const item = state.appearancePresets.find(p => p.id === themeId);
+            if (item) item.value = preset.value;
+          }
+
+          if (typeof showCustomAlert === 'function') {
+            await showCustomAlert('已覆盖', '当前气泡样式预设已覆盖为最新内容');
+          }
+
+          overlay.style.display = 'none';
+          return;
+        }
+      }
+
+      // 2) 其次：全局CSS预设(global_css) —— 完全复用外观设置逻辑
+      const cssSel = document.getElementById('css-preset-select');
+      let cssId = null;
+      if (cssSel && cssSel.value !== '') {
+        cssId = isNaN(Number(cssSel.value)) ? cssSel.value : Number(cssSel.value);
+      }
+
+      if (cssId != null) {
+        const preset = await db.appearancePresets.get(cssId);
+        if (preset && preset.type === 'global_css') {
+          const confirmed = await showCustomConfirm('覆盖预设', `确定要覆盖预设 “${preset.name}” 吗？`, { confirmButtonClass: 'btn-danger' });
+          if (!confirmed) return;
+
+          await db.appearancePresets.update(cssId, { value: newCss });
+
+          if (typeof loadCssPresetsDropdown === 'function') {
+            await loadCssPresetsDropdown();
+            const sel = document.getElementById('css-preset-select');
+            if (sel) sel.value = String(cssId);
+          }
+
+          if (typeof showCustomAlert === 'function') {
+            await showCustomAlert('已覆盖', '当前CSS预设已覆盖为最新内容');
+          }
+
+          overlay.style.display = 'none';
+          return;
+        }
+      }
+
+      // 3) 未选择任何预设：仅更新当前设置与预览
+      overlay.style.display = 'none';
+    } catch (e) {
+      console.error('保存全屏气泡CSS失败:', e);
+      alert('保存失败，请稍后重试。');
+    }
+  });
+})();
+ /* ▲▲▲ 全屏编辑 气泡CSS结束 ▲▲▲ */
+
+        // 【新增】初始化 CSS 文件上传
+        if (typeof setupCssFileUpload === 'function') {
+            setupCssFileUpload();
+        }
+        
+        // ▼▼▼ 【新增】CSS文件上传功能 ▼▼▼
+        setupCssFileUpload();
+        /* ▼▼▼ 【新增：CSS 文件上传导入功能】开始 ▼▼▼ */
+function showCssUploadAlert(message, type = 'info') {
+    const el = document.getElementById('css-upload-alert');
+    if (!el) return;
+    const colorMap = { success: '#155724', error: '#721c24', info: '#0c5460' };
+    const bgMap = { success: '#d4edda', error: '#f8d7da', info: '#d1ecf1' };
+    el.innerHTML = '<div style="padding:12px;border-radius:6px;border:1px solid rgba(0,0,0,.05);background:' + (bgMap[type]||bgMap.info) + ';color:' + (colorMap[type]||colorMap.info) + ';">' + message + '</div>';
+    setTimeout(()=>{ el.innerHTML=''; }, 3000);
+}
+function toggleCssUploadLoading(show) {
+    const el = document.getElementById('css-upload-loading');
+    if (el) el.style.display = show ? 'block' : 'none';
+}
+function setupCssFileUpload() {
+    const area = document.getElementById('css-file-upload-area');
+    const input = document.getElementById('css-file-input');
+    if (!area || !input) return;
+
+    area.addEventListener('dragover', (e)=>{ e.preventDefault(); area.style.borderColor = '#28a745'; });
+    area.addEventListener('dragleave', (e)=>{ e.preventDefault(); area.style.borderColor = '#007bff'; });
+    const triggerBtn = document.getElementById('css-file-trigger-btn');
+    if (triggerBtn) {
+        triggerBtn.addEventListener('click', (e)=> { e.stopPropagation(); input.click(); });
+    }
+    area.addEventListener('click', (e)=> {
+        // 点击按钮本身时不触发区域的 input.click()
+        if (e.target && (e.target.id === 'css-file-trigger-btn' || (e.target.closest && e.target.closest('#css-file-trigger-btn')))) return;
+        input.click();
+    });
+    area.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        area.style.borderColor = '#007bff';
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleCssFile(e.dataTransfer.files[0]);
+        }
+    });
+    input.addEventListener('change', (e)=>{
+        const f = e.target.files && e.target.files[0];
+        if (f) handleCssFile(f);
+        input.value = '';
+    });
+}
+async function handleCssFile(file) {
+    try {
+        const name = (file && file.name || '').toLowerCase();
+        if (!name.endsWith('.txt') && !name.endsWith('.docx')) {
+            showCssUploadAlert('不支持的文件格式，请选择 TXT 或 DOCX 文件', 'error');
+            return;
+        }
+        toggleCssUploadLoading(true);
+
+        let cssText = '';
+        if (name.endsWith('.txt')) {
+            cssText = await readTextFile(file);
+        } else {
+            cssText = await readDocxFile(file);
+        }
+        cssText = (cssText || '').trim();
+
+        if (!cssText) {
+            showCssUploadAlert('文件中未检测到有效的CSS内容', 'error');
+            return;
+        }
+
+        const textarea = document.getElementById('global-css-input');
+        if (textarea) textarea.value = cssText;
+
+        showCssUploadAlert('已从 ' + file.name + ' 导入CSS', 'success');
+
+        // 便捷：提示是否保存为预设
+        setTimeout(async ()=>{
+            try {
+                if (confirm('是否将导入的CSS保存为一个新预设？')) {
+                    if (typeof saveCssPreset === 'function') {
+                        await saveCssPreset();
+                    }
+                }
+            } catch(e){}
+        }, 300);
+    } catch (err) {
+        console.error(err);
+        showCssUploadAlert('文件处理失败：' + (err && err.message || '未知错误'), 'error');
+    } finally {
+        toggleCssUploadLoading(false);
+    }
+}
+function readTextFile(file) {
+    return new Promise((resolve, reject)=>{
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = ()=> reject(new Error('无法读取文本文件'));
+        reader.readAsText(file, 'UTF-8');
+    });
+}
+async function readDocxFile(file) {
+    if (typeof JSZip === 'undefined') {
+        throw new Error('DOCX解析所需的JSZip未加载');
+    }
+    const buf = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    const xml = await zip.file('word/document.xml').async('string');
+
+    // 去标签，取文本
+    let text = xml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // 尝试提取CSS片段
+    const cssBlocks = text.match(/[^{}]+\{[^{}]*\}/g);
+    if (cssBlocks && cssBlocks.length) return cssBlocks.join('\n\n');
+
+    return text;
+}
+/* ▲▲▲ 【新增：CSS 文件上传导入功能】结束 ▲▲▲ */
+// ▲▲▲ 新增结束 ▲▲▲
         // ▼▼▼ 【全新】字体预设功能事件监听器 ▼▼▼
         document.getElementById('font-preset-select').addEventListener('change', handleFontPresetSelectionChange);
         document.getElementById('save-font-preset-btn').addEventListener('click', saveFontPreset);
@@ -34808,6 +35227,146 @@ document.getElementById('regenerate-char-usage-btn').addEventListener('click', h
 </div>
 <!-- ▲▲▲ 替换结束 ▲▲▲ -->
 <audio id="char-audio-player" preload="auto"></audio>
+<!-- 【新增】DOCX解析依赖：JSZip（若重复引入，请保留任一处即可） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<!-- 【新增】聊天设置-气泡CSS 文件上传脚本 -->
+<script>
+(function(){
+    // 轻量提示
+    function chatCssAlert(msg, type) {
+        const el = document.getElementById('chat-css-upload-alert');
+        if (!el) return;
+        const colors = {success:'#155724', error:'#721c24', info:'#0c5460'};
+        const bgs = {success:'#d4edda', error:'#f8d7da', info:'#d1ecf1'};
+        el.innerHTML = '<div style="padding:10px;border-radius:6px;background:'+(bgs[type]||bgs.info)+';color:'+(colors[type]||colors.info)+';">'+msg+'</div>';
+        setTimeout(()=>{ el.innerHTML=''; }, 3000);
+    }
+    function chatCssLoading(show){
+        const el = document.getElementById('chat-css-upload-loading');
+        if (el) el.style.display = show ? 'block' : 'none';
+    }
+
+    // 兜底：如未定义，全局补上读取函数（避免与首页重复定义冲突）
+    if (typeof window.readTextFile !== 'function') {
+        window.readTextFile = function(file){
+            return new Promise((res, rej)=>{
+                const r = new FileReader();
+                r.onload = e => res(e.target.result);
+                r.onerror = () => rej(new Error('无法读取文本文件'));
+                r.readAsText(file, 'UTF-8');
+            });
+        };
+    }
+    if (typeof window.readDocxFile !== 'function') {
+        window.readDocxFile = async function(file){
+            if (typeof JSZip === 'undefined') throw new Error('未加载JSZip，无法解析DOCX');
+            const buf = await file.arrayBuffer();
+            const zip = await JSZip.loadAsync(buf);
+            const xml = await zip.file('word/document.xml').async('string');
+            let text = xml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            const cssBlocks = text.match(/[^{}]+\\{[^{}]*\\}/g);
+            return cssBlocks && cssBlocks.length ? cssBlocks.join('\
+\
+') : text;
+        };
+    }
+
+    // 初始化（防重复）
+    window.setupChatCssFileUpload = function(){
+        const area = document.getElementById('chat-css-file-upload-area');
+        const input = document.getElementById('chat-css-file-input');
+        const btn = document.getElementById('chat-css-file-trigger-btn');
+        if (!area || !input) return;
+        if (area.dataset.inited) return;
+        area.dataset.inited = '1';
+
+        // 防止按钮与区域双触发
+        if (btn) {
+            btn.addEventListener('click', function(e){ e.stopPropagation(); input.click(); });
+        }
+        area.addEventListener('click', function(e){
+            if (e.target && e.target.id === 'chat-css-file-trigger-btn') return;
+            input.click();
+        });
+
+        // 拖拽
+        area.addEventListener('dragover', function(e){ e.preventDefault(); area.style.borderColor = '#28a745'; });
+        area.addEventListener('dragleave', function(e){ e.preventDefault(); area.style.borderColor = '#007bff'; });
+        area.addEventListener('drop', function(e){
+            e.preventDefault(); area.style.borderColor = '#007bff';
+            const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) handleChatCssFile(f);
+        });
+
+        input.addEventListener('change', function(e){
+            const f = e.target.files && e.target.files[0];
+            if (f) handleChatCssFile(f);
+            input.value = '';
+        });
+    };
+
+    async function handleChatCssFile(file){
+        const name = (file && file.name || '').toLowerCase();
+        if (!name.endsWith('.txt') && !name.endsWith('.docx')) {
+            chatCssAlert('仅支持 TXT 或 DOCX 文件', 'error');
+            return;
+        }
+        chatCssLoading(true);
+        try{
+            let cssText = name.endsWith('.txt') ? await readTextFile(file) : await readDocxFile(file);
+            cssText = (cssText || '').trim();
+            if (!cssText) {
+                chatCssAlert('未检测到有效CSS内容', 'error'); 
+                return;
+            }
+            const textarea = document.getElementById('custom-css-input');
+            if (textarea) textarea.value = cssText;
+
+            // 通知可能存在的预览/保存逻辑更新
+            try {
+                if (typeof updateSettingsPreview === 'function') updateSettingsPreview();
+                window.dispatchEvent(new CustomEvent('chat-css-imported', { detail: { fileName: file.name }}));
+            } catch(_) {}
+
+            chatCssAlert('已从 '+ file.name +' 导入到气泡CSS', 'success');
+
+            // 可选提示保存为预设（若你的聊天设置端有对应的“保存预设”函数，可在此对接）
+            setTimeout(async ()=>{
+                try{
+                    if (confirm('是否保存为气泡样式预设？')) {
+                        if (typeof saveThemePreset === 'function') {
+                            await saveThemePreset();
+                        } else if (typeof saveCssPreset === 'function') {
+                            // 兜底调用全局保存（如你复用了同一套预设库）
+                            await saveCssPreset();
+                        } else {
+                            // 没有专用保存函数时，提示用户点击“保存”
+                            chatCssAlert('未检测到预设保存函数，请点击右上角“保存”按钮。', 'info');
+                        }
+                    }
+                } catch(_) {}
+            }, 300);
+        } catch(err){
+            console.error(err);
+            chatCssAlert('文件处理失败：' + (err && err.message || '未知错误'), 'error');
+        } finally{
+            chatCssLoading(false);
+        }
+    }
+
+    // 当用户打开“聊天设置”时，确保初始化上传区（不影响现有监听）
+    document.addEventListener('DOMContentLoaded', function(){
+        // 若聊天设置屏幕默认就存在，则直接尝试初始化一次
+        try { window.setupChatCssFileUpload(); } catch(_){}
+        // 同时在点击“聊天设置”按钮时再初始化一次（防止懒加载或DOM重建）
+        const btn = document.getElementById('chat-settings-btn');
+        if (btn) {
+            btn.addEventListener('click', function(){ setTimeout(()=>{ try{ window.setupChatCssFileUpload(); }catch(_){}} , 0); });
+        }
+    });
+})();
+</script>
 </body>
 </html>
 
